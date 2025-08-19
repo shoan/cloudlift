@@ -5,7 +5,7 @@ retrieving service configuration.
 
 import dictdiffer
 from botocore.exceptions import ClientError
-from click import confirm, edit, prompt
+from click import confirm, prompt
 from cloudlift.exceptions import UnrecoverableException
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
@@ -240,9 +240,16 @@ class ServiceConfiguration(object):
                     "minimum": 10,
                     "maximum": 30000
                 },
+                # For EC2 launch type - minimum number of CPU units are 128
+                "cpu_reservation": {
+                    "type": "number",
+                    "minimum": 128,
+                    "maximum": 4096
+                },
                 "fargate": {
                     "type": "object",
                     "properties": {
+                        # For Fargate launch type - minimum number of CPU units are 256
                         "cpu": {
                             "type": "number",
                             "minimum": 256,
@@ -337,8 +344,10 @@ class ServiceConfiguration(object):
                 "services": {
                     "type": "object",
                     "patternProperties": {
-                        "^[a-zA-Z]+$": service_schema
-                    }
+                        # Service names must start with a letter and can contain letters and numbers (no hyphens)
+                        "^[a-zA-Z][a-zA-Z0-9]*$": service_schema
+                    },
+                    "additionalProperties": False
                 },
                 "cloudlift_version": {
                     "type": "string"

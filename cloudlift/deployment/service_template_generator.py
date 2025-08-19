@@ -75,6 +75,8 @@ class ServiceTemplateGenerator(TemplateGenerator):
         self.environment_configuration = EnvironmentConfiguration(self.environment).get_config().get(self.environment, {})
         self.service_defaults = self.environment_configuration.get('service_defaults', {})
         self.cluster_alb_listeners: list = []
+        # This constant is used to multiply the CPU reservation value to get the task CPU value
+        self.CPU_LIMIT_MULTIPLIER_FACTOR = 1.25
 
     def _derive_configuration(self, service_configuration):
         self.application_name = service_configuration.service_name
@@ -235,6 +237,7 @@ service is down',
             "Essential": 'true',
             "Cpu": 0
         }
+
         placement_constraint = {}
         if 'fargate' not in config:
             for key in self.environment_stack["Outputs"]:
@@ -331,6 +334,25 @@ service is down',
                 'Cpu': str(config['fargate']['cpu']),
                 'Memory': str(config['fargate']['memory'])
             }
+
+        if launch_type == self.LAUNCH_TYPE_EC2:
+            cpu_limit = None
+            multiplier_factor = self.CPU_LIMIT_MULTIPLIER_FACTOR
+
+            if config.get("cpu_reservation"):
+                cpu_reservation = int(config['cpu_reservation'])
+                # Add 25% to the cpu reservation for the cpu limit
+                cpu_limit = cpu_reservation * multiplier_factor
+
+            # Do not set a default value unless cpu_reservation is provided
+            if cpu_limit and cpu_limit > 0:
+                # Round the value to the nearest integer
+                # Task definition requires a string value for cpu without decimal places in it
+                # Example: 256, 512, 1024, not 256.0, 512.0, 1024.0
+                cpu_limit_str = format(cpu_limit, '.0f')
+                launch_type_td = {
+                    'Cpu': cpu_limit_str,
+                }
 
         if 'custom_metrics' in config:
             launch_type_td['NetworkMode'] = 'awsvpc'

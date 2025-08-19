@@ -1,6 +1,9 @@
 import re
+
 from stringcase import pascalcase
+
 from cloudlift.exceptions import UnrecoverableException
+
 
 def generate_pascalcase_name(name: str, max_length: int = 32) -> str:
     pascal_case = pascalcase(name)
